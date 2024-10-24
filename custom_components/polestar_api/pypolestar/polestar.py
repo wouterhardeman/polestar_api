@@ -192,9 +192,26 @@ class PolestarApi:
 
         await call_api(lambda: self._get_odometer_data(vin))
         await call_api(lambda: self._get_battery_data(vin))
+        await call_api(lambda: self._get_health_data(vin))
 
         self.updating = False
         self.next_update = datetime.now() + timedelta(seconds=5)
+
+    async def _get_health_data(self, vin: str):
+        """Get the latest health data from the Polestar API."""
+        params = {
+            "query": "query GetHealthData($vin: String!) { getHealthData(vin: $vin) { brakeFluidLevelWarning daysToService distanceToServiceKm engineCoolantLevelWarning eventUpdatedTimestamp { iso unix } oilLevelWarning serviceWarning } }",
+            "operationName": "GetHealthData",
+            "variables": '{"vin":"' + vin + '"}',
+        }
+        result = await self.get_graph_ql(params, BASE_URL_V2)
+
+        if result and result["data"]:
+            # put result in cache
+            self.cache_data["getHealthData"] = {
+                "data": result["data"]["getHealthData"],
+                "timestamp": datetime.now(),
+            }
 
     def get_cache_data(self, query: str, field_name: str, skip_cache: bool = False):
         """Get the latest data from the cache."""
